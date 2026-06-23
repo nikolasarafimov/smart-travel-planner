@@ -1,0 +1,35 @@
+services:
+  consul:
+    image: hashicorp/consul:latest
+    container_name: smart-travel-consul
+    ports:
+      - "8500:8500"
+    command: "agent -dev -client=0.0.0.0"
+
+  recommendation-db:
+    image: postgres:16
+    container_name: smart-travel-recommendation-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: recommendation_db
+      POSTGRES_USER: recommendation_user
+      POSTGRES_PASSWORD: recommendation_pass
+    volumes:
+      - recommendation_data:/var/lib/postgresql/data
+
+  trip-db:
+    image: postgres:16
+    container_name: smart-travel-trip-db
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: trip_db
+      POSTGRES_USER: trip_user
+      POSTGRES_PASSWORD: trip_pass
+    volumes:
+      - trip_data:/var/lib/postgresql/data
+
+volumes:
+  recommendation_data:
+  trip_data:

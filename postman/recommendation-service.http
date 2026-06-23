@@ -1,0 +1,32 @@
+### Health test through Gateway
+GET http://localhost:8080/api/recommendations/health-test
+
+
+### Get all recommendations for Paris
+GET http://localhost:8080/api/recommendations?destination=Paris
+
+
+### Get Paris attractions
+GET http://localhost:8080/api/recommendations/attractions?destination=Paris
+
+
+### Get Paris hotels under budget
+GET http://localhost:8080/api/recommendations/hotels?destination=Paris&budget=100
+
+
+### Save recommendation with id 1 for trip 1
+POST http://localhost:8080/api/recommendations/1/save
+Content-Type: application/json
+
+{
+  "tripId": 1,
+  "userId": "demo-user"
+}
+
+
+### Get saved recommendations for trip 1
+GET http://localhost:8080/api/recommendations/saved?tripId=1
+
+
+### Estimate trip cost from saved recommendations
+GET http://localhost:8080/api/recommendations/estimate?tripId=1
