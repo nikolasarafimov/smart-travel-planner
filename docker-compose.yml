@@ -35,9 +35,19 @@ services:
       - "8085:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: smart-travel-kafka
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_SERVERS: kafka:9092
     depends_on:
       - kafka
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.3
+    container_name: smart-travel-keycloak
+    ports:
+      - "8086:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    command: start-dev
 
   recommendation-db:
     image: postgres:16
