@@ -1,0 +1,146 @@
+{
+  "consumer": {
+    "name": "trip-service"
+  },
+  "interactions": [
+    {
+      "comments": {
+        "testname": "com.smarttravel.trip.pact.TripRecommendationConsumerPactTest.shouldGetRecommendationsForParis(MockServer)",
+        "text": [
+
+        ]
+      },
+      "description": "a request for recommendations for Paris",
+      "key": "efbde881",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "Paris recommendations exist"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/recommendations",
+        "query": {
+          "destination": [
+            "Paris"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": [
+            {
+              "description": "One of the most famous landmarks in Paris.",
+              "destination": "Paris",
+              "estimatedPrice": 30,
+              "id": 1,
+              "name": "Eiffel Tower",
+              "rating": 4.8,
+              "source": "Seed Data",
+              "type": "ATTRACTION"
+            }
+          ],
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$[*].description": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].destination": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].estimatedPrice": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            },
+            "$[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            },
+            "$[*].name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].rating": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            },
+            "$[*].source": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pact-jvm": {
+      "version": "4.7.3"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    }
+  },
+  "provider": {
+    "name": "recommendation-service"
+  }
+}

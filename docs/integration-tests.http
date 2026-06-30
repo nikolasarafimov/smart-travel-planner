@@ -1,0 +1,50 @@
+### 1. Get Keycloak token
+POST http://localhost:8086/realms/smart-travel/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=smart-travel-client&username=demo-user&password=demo-pass&grant_type=password
+
+
+### 2. Gateway health
+GET http://localhost:8080/actuator/health
+
+
+### 3. Get recommendations through Gateway
+GET http://localhost:8080/api/recommendations?destination=Paris
+Authorization: Bearer {{access_token}}
+
+
+### 4. Create trip through Gateway
+POST http://localhost:8080/api/trips
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "userId": "demo-user",
+  "destination": "Paris",
+  "startDate": "2026-07-10",
+  "endDate": "2026-07-15",
+  "budget": 800,
+  "currency": "EUR"
+}
+
+
+### 5. Get recommendations for trip through Trip Service -> Recommendation Service
+GET http://localhost:8080/api/trips/1/recommendations
+Authorization: Bearer {{access_token}}
+
+
+### 6. Save recommendation
+POST http://localhost:8080/api/recommendations/1/save
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "tripId": 1,
+  "userId": "demo-user"
+}
+
+
+### 7. Estimate trip cost through Trip Service
+GET http://localhost:8080/api/trips/1/estimated-cost
+Authorization: Bearer {{access_token}}
