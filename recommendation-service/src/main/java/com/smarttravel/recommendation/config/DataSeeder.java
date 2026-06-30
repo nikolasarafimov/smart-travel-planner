@@ -11,10 +11,13 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Configuration
-@RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 
     private final RecommendationRepository recommendationRepository;
+
+    public DataSeeder(RecommendationRepository recommendationRepository) {
+        this.recommendationRepository = recommendationRepository;
+    }
 
     @Override
     public void run(String... args) {
@@ -23,77 +26,91 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         List<Recommendation> recommendations = List.of(
-                Recommendation.builder()
-                        .destination("Paris")
-                        .name("Eiffel Tower")
-                        .type(RecommendationType.ATTRACTION)
-                        .description("One of the most famous landmarks in Paris.")
-                        .estimatedPrice(new BigDecimal("30"))
-                        .rating(4.8)
-                        .source("Seed Data")
-                        .build(),
-
-                Recommendation.builder()
-                        .destination("Paris")
-                        .name("Louvre Museum")
-                        .type(RecommendationType.ATTRACTION)
-                        .description("World-famous museum known for the Mona Lisa and historical art collections.")
-                        .estimatedPrice(new BigDecimal("22"))
-                        .rating(4.7)
-                        .source("Seed Data")
-                        .build(),
-
-                Recommendation.builder()
-                        .destination("Paris")
-                        .name("Montmartre")
-                        .type(RecommendationType.ATTRACTION)
-                        .description("Historic artistic district with beautiful views over Paris.")
-                        .estimatedPrice(new BigDecimal("0"))
-                        .rating(4.6)
-                        .source("Seed Data")
-                        .build(),
-
-                Recommendation.builder()
-                        .destination("Paris")
-                        .name("Hotel Lumiere")
-                        .type(RecommendationType.HOTEL)
-                        .description("Comfortable mid-range hotel close to the city center.")
-                        .estimatedPrice(new BigDecimal("150"))
-                        .rating(4.4)
-                        .source("Seed Data")
-                        .build(),
-
-                Recommendation.builder()
-                        .destination("Paris")
-                        .name("Paris Budget Stay")
-                        .type(RecommendationType.HOTEL)
-                        .description("Affordable accommodation for travelers on a smaller budget.")
-                        .estimatedPrice(new BigDecimal("80"))
-                        .rating(4.1)
-                        .source("Seed Data")
-                        .build(),
-
-                Recommendation.builder()
-                        .destination("Paris")
-                        .name("Le Petit Bistro")
-                        .type(RecommendationType.RESTAURANT)
-                        .description("Traditional French restaurant with local dishes.")
-                        .estimatedPrice(new BigDecimal("45"))
-                        .rating(4.5)
-                        .source("Seed Data")
-                        .build(),
-
-                Recommendation.builder()
-                        .destination("Paris")
-                        .name("Cafe Seine")
-                        .type(RecommendationType.RESTAURANT)
-                        .description("Cozy cafe near the Seine river.")
-                        .estimatedPrice(new BigDecimal("25"))
-                        .rating(4.3)
-                        .source("Seed Data")
-                        .build()
+                createRecommendation(
+                        "Paris",
+                        "Eiffel Tower",
+                        RecommendationType.ATTRACTION,
+                        "One of the most famous landmarks in Paris.",
+                        "30",
+                        4.8,
+                        "Seed Data"
+                ),
+                createRecommendation(
+                        "Paris",
+                        "Louvre Museum",
+                        RecommendationType.ATTRACTION,
+                        "World-famous museum known for the Mona Lisa and historical art collections.",
+                        "22",
+                        4.7,
+                        "Seed Data"
+                ),
+                createRecommendation(
+                        "Paris",
+                        "Montmartre",
+                        RecommendationType.ATTRACTION,
+                        "Historic artistic district with beautiful views over Paris.",
+                        "0",
+                        4.6,
+                        "Seed Data"
+                ),
+                createRecommendation(
+                        "Paris",
+                        "Hotel Lumiere",
+                        RecommendationType.HOTEL,
+                        "Comfortable mid-range hotel close to the city center.",
+                        "150",
+                        4.4,
+                        "Seed Data"
+                ),
+                createRecommendation(
+                        "Paris",
+                        "Paris Budget Stay",
+                        RecommendationType.HOTEL,
+                        "Affordable accommodation for travelers on a smaller budget.",
+                        "80",
+                        4.1,
+                        "Seed Data"
+                ),
+                createRecommendation(
+                        "Paris",
+                        "Le Petit Bistro",
+                        RecommendationType.RESTAURANT,
+                        "Traditional French restaurant with local dishes.",
+                        "45",
+                        4.5,
+                        "Seed Data"
+                ),
+                createRecommendation(
+                        "Paris",
+                        "Cafe Seine",
+                        RecommendationType.RESTAURANT,
+                        "Cozy cafe near the Seine river.",
+                        "25",
+                        4.3,
+                        "Seed Data"
+                )
         );
 
         recommendationRepository.saveAll(recommendations);
+    }
+
+    private Recommendation createRecommendation(
+            String destination,
+            String name,
+            RecommendationType type,
+            String description,
+            String estimatedPrice,
+            Double rating,
+            String source
+    ) {
+        Recommendation recommendation = new Recommendation();
+        recommendation.setDestination(destination);
+        recommendation.setName(name);
+        recommendation.setType(type);
+        recommendation.setDescription(description);
+        recommendation.setEstimatedPrice(new BigDecimal(estimatedPrice));
+        recommendation.setRating(rating);
+        recommendation.setSource(source);
+        return recommendation;
     }
 }

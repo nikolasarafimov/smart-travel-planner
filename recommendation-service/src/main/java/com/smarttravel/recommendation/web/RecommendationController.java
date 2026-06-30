@@ -13,10 +13,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/recommendations")
-@RequiredArgsConstructor
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
+
+    public RecommendationController(RecommendationService recommendationService) {
+        this.recommendationService = recommendationService;
+    }
 
     @GetMapping
     public List<Recommendation> getRecommendations(
