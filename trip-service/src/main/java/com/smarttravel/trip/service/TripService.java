@@ -5,6 +5,8 @@ import com.smarttravel.trip.dto.CreateTripRequest;
 import com.smarttravel.trip.dto.RecommendationResponse;
 import com.smarttravel.trip.dto.TripResponse;
 import com.smarttravel.trip.dto.UpdateTripRequest;
+import com.smarttravel.trip.event.TripCreatedEvent;
+import com.smarttravel.trip.event.TripEventProducer;
 import com.smarttravel.trip.exceptions.TripNotFoundException;
 import com.smarttravel.trip.model.Trip;
 import com.smarttravel.trip.model.TripStatus;
@@ -23,6 +25,7 @@ public class TripService {
 
     private final TripRepository tripRepository;
     private final RecommendationClient recommendationClient;
+    private final TripEventProducer tripEventProducer;
 
     public TripResponse createTrip(CreateTripRequest request) {
         Trip trip = Trip.builder()
@@ -36,6 +39,17 @@ public class TripService {
                 .build();
 
         Trip savedTrip = tripRepository.save(trip);
+        tripEventProducer.publishTripCreatedEvent(
+                new TripCreatedEvent(
+                        savedTrip.getId(),
+                        savedTrip.getUserId(),
+                        savedTrip.getDestination(),
+                        savedTrip.getStartDate(),
+                        savedTrip.getEndDate(),
+                        savedTrip.getBudget(),
+                        savedTrip.getCurrency()
+                )
+        );
 
         return mapToResponse(savedTrip);
     }
