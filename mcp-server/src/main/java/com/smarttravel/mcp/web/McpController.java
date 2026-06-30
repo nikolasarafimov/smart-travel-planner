@@ -1,13 +1,9 @@
 package com.smarttravel.mcp.web;
-
-
 import com.smarttravel.mcp.dto.RecommendationResponse;
 import com.smarttravel.mcp.dto.SavedRecommendationResponse;
 import com.smarttravel.mcp.dto.TripResponse;
 import com.smarttravel.mcp.tools.SmartTravelMcpTools;
 import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
