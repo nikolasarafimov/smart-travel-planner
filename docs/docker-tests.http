@@ -1,0 +1,136 @@
+### 1. Get fresh Keycloak access token
+POST http://localhost:8086/realms/smart-travel/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=smart-travel-client&username=demo-user&password=demo-pass&grant_type=password
+
+> {%
+    client.global.set("access_token", response.body.access_token);
+%}
+
+
+### 2. Gateway health
+GET http://localhost:8080/actuator/health
+
+
+### 3. Trip Service health
+GET http://localhost:8081/actuator/health
+
+
+### 4. Recommendation Service health
+GET http://localhost:8082/actuator/health
+
+
+### 5. MCP Server health
+GET http://localhost:8087/actuator/health
+
+
+### 6. Should return 401 without token
+GET http://localhost:8080/api/trips
+
+
+### 7. Get Paris recommendations through Gateway
+GET http://localhost:8080/api/recommendations?destination=Paris
+Authorization: Bearer {{access_token}}
+
+> {%
+    if (response.body.length > 0) {
+        client.global.set("recommendation_id", response.body[0].id);
+    }
+%}
+
+
+### 8. Get Paris attractions
+GET http://localhost:8080/api/recommendations?destination=Paris&type=ATTRACTION
+Authorization: Bearer {{access_token}}
+
+
+### 9. Get Paris restaurants
+GET http://localhost:8080/api/recommendations/restaurants?destination=Paris
+Authorization: Bearer {{access_token}}
+
+
+### 10. Get Paris hotels with budget
+GET http://localhost:8080/api/recommendations/hotels?destination=Paris&budget=100
+Authorization: Bearer {{access_token}}
+
+
+### 11. Create trip through Gateway
+POST http://localhost:8080/api/trips
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "userId": "demo-user",
+  "destination": "Paris",
+  "startDate": "2026-07-10",
+  "endDate": "2026-07-15",
+  "budget": 800,
+  "currency": "EUR"
+}
+
+> {%
+    client.global.set("trip_id", response.body.id);
+%}
+
+
+### 12. Get all trips
+GET http://localhost:8080/api/trips
+Authorization: Bearer {{access_token}}
+
+
+### 13. Get trips by user
+GET http://localhost:8080/api/trips?userId=demo-user
+Authorization: Bearer {{access_token}}
+
+
+### 14. Get trip by id
+GET http://localhost:8080/api/trips/{{trip_id}}
+Authorization: Bearer {{access_token}}
+
+
+### 15. Trip Service calls Recommendation Service through Feign
+GET http://localhost:8080/api/trips/{{trip_id}}/recommendations
+Authorization: Bearer {{access_token}}
+
+
+### 16. Save recommendation to trip
+POST http://localhost:8080/api/recommendations/{{recommendation_id}}/save
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "tripId": {{trip_id}},
+  "userId": "demo-user"
+}
+
+
+### 17. Get saved recommendations for trip
+GET http://localhost:8080/api/recommendations/saved?tripId={{trip_id}}
+Authorization: Bearer {{access_token}}
+
+
+### 18. Estimate trip cost through Trip Service
+GET http://localhost:8080/api/trips/{{trip_id}}/estimated-cost
+Authorization: Bearer {{access_token}}
+
+
+### 19. Estimate trip cost through Recommendation Service
+GET http://localhost:8080/api/recommendations/estimate?tripId={{trip_id}}
+Authorization: Bearer {{access_token}}
+
+
+### 20. MCP test - recommend places
+GET http://localhost:8087/api/mcp-test/recommend-places?destination=Paris&type=ATTRACTION&limit=3
+
+
+### 21. MCP test - get trip details
+GET http://localhost:8087/api/mcp-test/trip/{{trip_id}}
+
+
+### 22. MCP test - get saved attractions
+GET http://localhost:8087/api/mcp-test/saved-attractions?tripId={{trip_id}}
+
+
+### 23. MCP test - estimate trip cost
+GET http://localhost:8087/api/mcp-test/estimate?tripId={{trip_id}}

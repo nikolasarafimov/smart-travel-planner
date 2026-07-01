@@ -5,6 +5,33 @@ services:
     ports:
       - "8500:8500"
     command: "agent -dev -client=0.0.0.0"
+    restart: unless-stopped
+
+  recommendation-db:
+    image: postgres:16
+    container_name: smart-travel-recommendation-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: recommendation_db
+      POSTGRES_USER: recommendation_user
+      POSTGRES_PASSWORD: recommendation_pass
+    volumes:
+      - recommendation_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  trip-db:
+    image: postgres:16
+    container_name: smart-travel-trip-db
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: trip_db
+      POSTGRES_USER: trip_user
+      POSTGRES_PASSWORD: trip_pass
+    volumes:
+      - trip_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
   kafka:
     image: apache/kafka:latest
@@ -27,6 +54,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 1
+    restart: unless-stopped
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -35,9 +63,10 @@ services:
       - "8085:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: smart-travel-kafka
-      KAFKA_CLUSTERS_0_SERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
       - kafka
+    restart: unless-stopped
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.6.3
@@ -47,32 +76,80 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8086
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
     command: start-dev
-
-  recommendation-db:
-    image: postgres:16
-    container_name: smart-travel-recommendation-db
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_DB: recommendation_db
-      POSTGRES_USER: recommendation_user
-      POSTGRES_PASSWORD: recommendation_pass
     volumes:
-      - recommendation_data:/var/lib/postgresql/data
+      - keycloak_data:/opt/keycloak/data
+    restart: unless-stopped
 
-  trip-db:
-    image: postgres:16
-    container_name: smart-travel-trip-db
+  recommendation-service:
+    build:
+      context: ./recommendation-service
+      dockerfile: Dockerfile
+    container_name: smart-travel-recommendation-service
     ports:
-      - "5434:5432"
+      - "8082:8082"
     environment:
-      POSTGRES_DB: trip_db
-      POSTGRES_USER: trip_user
-      POSTGRES_PASSWORD: trip_pass
-    volumes:
-      - trip_data:/var/lib/postgresql/data
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - consul
+      - recommendation-db
+      - kafka
+      - keycloak
+    restart: on-failure
+
+  trip-service:
+    build:
+      context: ./trip-service
+      dockerfile: Dockerfile
+    container_name: smart-travel-trip-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - consul
+      - trip-db
+      - kafka
+      - keycloak
+      - recommendation-service
+    restart: on-failure
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: smart-travel-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - consul
+      - keycloak
+      - recommendation-service
+      - trip-service
+    restart: on-failure
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    container_name: smart-travel-mcp-server
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MCP_CLIENT_SECRET: ${MCP_CLIENT_SECRET}
+    depends_on:
+      - consul
+      - keycloak
+      - api-gateway
+    restart: on-failure
 
 volumes:
   recommendation_data:
   trip_data:
+  keycloak_data:
