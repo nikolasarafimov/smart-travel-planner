@@ -1,0 +1,370 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #eef3f8;
+    color: #172033;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+            linear-gradient(135deg, rgba(17, 76, 132, 0.92), rgba(31, 149, 132, 0.88)),
+            url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80");
+    background-size: cover;
+    background-position: center;
+    padding: 24px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 460px;
+    padding: 40px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.24);
+    text-align: center;
+}
+
+.login-icon {
+    font-size: 56px;
+}
+
+.login-card h1 {
+    margin: 16px 0 12px;
+    font-size: 34px;
+}
+
+.login-card p {
+    color: #5d6a7a;
+    line-height: 1.6;
+}
+
+.navbar {
+    height: 76px;
+    background: #ffffff;
+    border-bottom: 1px solid #dce5ee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 800;
+    font-size: 20px;
+    color: #0d3b66;
+}
+
+.brand-icon {
+    font-size: 28px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-link {
+    border: none;
+    background: transparent;
+    color: #5f6f83;
+    padding: 10px 14px;
+    border-radius: 12px;
+}
+
+.nav-link.active {
+    background: #e7f1ff;
+    color: #0d63ce;
+    font-weight: 700;
+}
+
+.auth-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-label {
+    color: #536273;
+    font-weight: 600;
+}
+
+main {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+}
+
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.hero {
+    background:
+            linear-gradient(135deg, rgba(13, 59, 102, 0.95), rgba(32, 164, 150, 0.92));
+    color: white;
+    padding: 44px;
+    border-radius: 30px;
+    box-shadow: 0 20px 60px rgba(13, 59, 102, 0.2);
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 13px;
+    opacity: 0.8;
+    font-weight: 800;
+}
+
+.hero h1 {
+    max-width: 800px;
+    font-size: 44px;
+    line-height: 1.05;
+    margin: 12px 0;
+}
+
+.hero-text {
+    max-width: 760px;
+    font-size: 18px;
+    opacity: 0.9;
+    line-height: 1.6;
+}
+
+.cards-grid,
+.recommendations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+}
+
+.info-card,
+.panel,
+.recommendation-card,
+.cost-card,
+.list-card {
+    background: #ffffff;
+    border: 1px solid #dce5ee;
+    border-radius: 22px;
+    padding: 22px;
+    box-shadow: 0 14px 34px rgba(20, 40, 70, 0.06);
+}
+
+.info-card h3,
+.panel h2,
+.recommendation-card h3,
+.list-card h3 {
+    margin-top: 0;
+    color: #12263a;
+}
+
+.info-card p,
+.panel p,
+.recommendation-card p,
+.list-card p {
+    color: #607083;
+    line-height: 1.5;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-header h1 {
+    margin-bottom: 6px;
+}
+
+.page-header p {
+    margin-top: 0;
+    color: #607083;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 22px;
+    align-items: start;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+label {
+    color: #435269;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+input,
+select {
+    width: 100%;
+    border: 1px solid #ccd8e5;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #fbfdff;
+    color: #172033;
+}
+
+input:focus,
+select:focus {
+    outline: 3px solid #d8ecff;
+    border-color: #2f80ed;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button {
+    border: none;
+    border-radius: 14px;
+    padding: 12px 18px;
+    font-weight: 800;
+}
+
+.primary-button {
+    background: #0d63ce;
+    color: white;
+}
+
+.primary-button:hover {
+    background: #084fa8;
+}
+
+.secondary-button {
+    background: #e8f2ff;
+    color: #0d63ce;
+}
+
+.danger-button {
+    background: #ffe9e9;
+    color: #c62828;
+}
+
+.large {
+    width: 100%;
+    margin-top: 18px;
+    padding: 15px 20px;
+}
+
+.message {
+    background: #fff8dd;
+    color: #7a5c00;
+    border: 1px solid #f2d36d;
+    padding: 14px 18px;
+    border-radius: 16px;
+    font-weight: 700;
+}
+
+.search-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    align-items: end;
+}
+
+.recommendation-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.badge {
+    align-self: flex-start;
+    background: #e7f7f4;
+    color: #087f6f;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.card-meta {
+    display: flex;
+    justify-content: space-between;
+    color: #12263a;
+    font-weight: 800;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.list-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: center;
+}
+
+.muted {
+    color: #8190a3 !important;
+    font-size: 14px;
+}
+
+.cost-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #12355b;
+    color: white;
+}
+
+.cost-card span {
+    opacity: 0.8;
+}
+
+.cost-card strong {
+    font-size: 32px;
+}
+
+@media (max-width: 860px) {
+    .navbar {
+        height: auto;
+        flex-direction: column;
+        gap: 14px;
+        padding: 18px;
+    }
+
+    .nav-links {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .content-grid,
+    .search-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .hero h1 {
+        font-size: 32px;
+    }
+}
