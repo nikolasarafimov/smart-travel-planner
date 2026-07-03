@@ -149,6 +149,18 @@ services:
       - api-gateway
     restart: on-failure
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smart-travel-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+      - keycloak
+    restart: unless-stopped
+
 volumes:
   recommendation_data:
   trip_data:
