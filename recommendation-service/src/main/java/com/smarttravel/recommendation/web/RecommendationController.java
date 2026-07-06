@@ -5,7 +5,7 @@ import com.smarttravel.recommendation.model.Recommendation;
 import com.smarttravel.recommendation.model.RecommendationType;
 import com.smarttravel.recommendation.model.SavedRecommendation;
 import com.smarttravel.recommendation.service.RecommendationService;
-import lombok.RequiredArgsConstructor;
+import com.smarttravel.recommendation.dto.ExternalApiStatusResponse;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -19,6 +19,11 @@ public class RecommendationController {
 
     public RecommendationController(RecommendationService recommendationService) {
         this.recommendationService = recommendationService;
+    }
+
+    @GetMapping("/external/status")
+    public ExternalApiStatusResponse getExternalApiStatus() {
+        return recommendationService.getExternalApiStatus();
     }
 
     @GetMapping

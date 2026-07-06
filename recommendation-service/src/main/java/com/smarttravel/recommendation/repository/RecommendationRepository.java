@@ -5,6 +5,7 @@ import com.smarttravel.recommendation.model.RecommendationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface RecommendationRepository extends JpaRepository<Recommendation, Long> {
 
@@ -17,4 +18,6 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
             RecommendationType type,
             java.math.BigDecimal estimatedPrice
     );
+
+    Optional<Recommendation> findByExternalPlaceId(String externalPlaceId);
 }

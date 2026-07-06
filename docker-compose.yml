@@ -93,6 +93,7 @@ services:
       - "8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
     depends_on:
       - consul
       - recommendation-db
@@ -159,6 +160,9 @@ services:
     depends_on:
       - api-gateway
       - keycloak
+      - trip-service
+      - recommendation-service
+      - mcp-server
     restart: unless-stopped
 
 volumes:

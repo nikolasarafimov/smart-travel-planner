@@ -29,11 +29,14 @@ public class Recommendation {
 
     private String source;
 
+    @Column(name = "external_place_id", unique = true)
+    private String externalPlaceId;
+
     public Recommendation() {
     }
 
     public Recommendation(Long id, String destination, String name, RecommendationType type,
-                          String description, BigDecimal estimatedPrice, Double rating, String source) {
+                          String description, BigDecimal estimatedPrice, Double rating, String source, String externalPlaceId) {
         this.id = id;
         this.destination = destination;
         this.name = name;
@@ -42,6 +45,7 @@ public class Recommendation {
         this.estimatedPrice = estimatedPrice;
         this.rating = rating;
         this.source = source;
+        this.externalPlaceId = externalPlaceId;
     }
 
     public Long getId() {
@@ -76,6 +80,8 @@ public class Recommendation {
         return source;
     }
 
+    public String getExternalPlaceId() {return externalPlaceId;}
+
     public void setId(Long id) {
         this.id = id;
     }
@@ -107,4 +113,6 @@ public class Recommendation {
     public void setSource(String source) {
         this.source = source;
     }
+
+    public void setExternalPlaceId(String externalPlaceId) {this.externalPlaceId = externalPlaceId;}
 }

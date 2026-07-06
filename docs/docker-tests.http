@@ -25,12 +25,17 @@ GET http://localhost:8082/actuator/health
 GET http://localhost:8087/actuator/health
 
 
-### 6. Should return 401 without token
+### 6. Security negative test - should return 401 without token
 GET http://localhost:8080/api/trips
 
 
-### 7. Get Paris recommendations through Gateway
-GET http://localhost:8080/api/recommendations?destination=Paris
+### 7. External API status through Gateway
+GET http://localhost:8080/api/recommendations/external/status
+Authorization: Bearer {{access_token}}
+
+
+### 8. Get Paris seed recommendations through Gateway
+GET http://localhost:8080/api/recommendations?destination=Paris&type=ATTRACTION
 Authorization: Bearer {{access_token}}
 
 > {%
@@ -40,22 +45,39 @@ Authorization: Bearer {{access_token}}
 %}
 
 
-### 8. Get Paris attractions
-GET http://localhost:8080/api/recommendations?destination=Paris&type=ATTRACTION
+### 9. Get Rome live recommendations through Geoapify fallback
+GET http://localhost:8080/api/recommendations?destination=Rome&type=ATTRACTION
+Authorization: Bearer {{access_token}}
+
+> {%
+    if (response.body.length > 0) {
+        client.global.set("live_recommendation_id", response.body[0].id);
+        client.global.set("live_recommendation_source", response.body[0].source);
+    }
+%}
+
+
+### 10. Repeat Rome live recommendations to verify no duplicate DB records
+GET http://localhost:8080/api/recommendations?destination=Rome&type=ATTRACTION
 Authorization: Bearer {{access_token}}
 
 
-### 9. Get Paris restaurants
-GET http://localhost:8080/api/recommendations/restaurants?destination=Paris
+### 11. Get Skopje restaurants through live API or fallback
+GET http://localhost:8080/api/recommendations/restaurants?destination=Skopje
 Authorization: Bearer {{access_token}}
 
 
-### 10. Get Paris hotels with budget
-GET http://localhost:8080/api/recommendations/hotels?destination=Paris&budget=100
+### 12. Get Ohrid hotels with budget through live API or fallback
+GET http://localhost:8080/api/recommendations/hotels?destination=Ohrid&budget=100
 Authorization: Bearer {{access_token}}
 
 
-### 11. Create trip through Gateway
+### 13. Get Paris attractions endpoint
+GET http://localhost:8080/api/recommendations/attractions?destination=Paris
+Authorization: Bearer {{access_token}}
+
+
+### 14. Create trip through Gateway
 POST http://localhost:8080/api/trips
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
@@ -74,27 +96,43 @@ Content-Type: application/json
 %}
 
 
-### 12. Get all trips
+### 15. Get all trips through Gateway
 GET http://localhost:8080/api/trips
 Authorization: Bearer {{access_token}}
 
 
-### 13. Get trips by user
+### 16. Get trips by user through Gateway
 GET http://localhost:8080/api/trips?userId=demo-user
 Authorization: Bearer {{access_token}}
 
 
-### 14. Get trip by id
+### 17. Get trip by id through Gateway
 GET http://localhost:8080/api/trips/{{trip_id}}
 Authorization: Bearer {{access_token}}
 
 
-### 15. Trip Service calls Recommendation Service through Feign
+### 18. Update trip status through Gateway
+PUT http://localhost:8080/api/trips/{{trip_id}}
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "userId": "demo-user",
+  "destination": "Paris",
+  "startDate": "2026-07-10",
+  "endDate": "2026-07-15",
+  "budget": 800,
+  "currency": "EUR",
+  "status": "PLANNED"
+}
+
+
+### 19. Trip Service calls Recommendation Service through Feign
 GET http://localhost:8080/api/trips/{{trip_id}}/recommendations
 Authorization: Bearer {{access_token}}
 
 
-### 16. Save recommendation to trip
+### 20. Save seed recommendation to trip
 POST http://localhost:8080/api/recommendations/{{recommendation_id}}/save
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
@@ -105,32 +143,48 @@ Content-Type: application/json
 }
 
 
-### 17. Get saved recommendations for trip
+### 21. Save live Geoapify recommendation to trip
+POST http://localhost:8080/api/recommendations/{{live_recommendation_id}}/save
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "tripId": {{trip_id}},
+  "userId": "demo-user"
+}
+
+
+### 22. Get saved recommendations for trip
 GET http://localhost:8080/api/recommendations/saved?tripId={{trip_id}}
 Authorization: Bearer {{access_token}}
 
 
-### 18. Estimate trip cost through Trip Service
+### 23. Estimate trip cost through Trip Service
 GET http://localhost:8080/api/trips/{{trip_id}}/estimated-cost
 Authorization: Bearer {{access_token}}
 
 
-### 19. Estimate trip cost through Recommendation Service
+### 24. Estimate trip cost through Recommendation Service
 GET http://localhost:8080/api/recommendations/estimate?tripId={{trip_id}}
 Authorization: Bearer {{access_token}}
 
 
-### 20. MCP test - recommend places
+### 25. MCP REST test - recommend places
 GET http://localhost:8087/api/mcp-test/recommend-places?destination=Paris&type=ATTRACTION&limit=3
 
 
-### 21. MCP test - get trip details
+### 26. MCP REST test - get trip details
 GET http://localhost:8087/api/mcp-test/trip/{{trip_id}}
 
 
-### 22. MCP test - get saved attractions
+### 27. MCP REST test - get saved attractions
 GET http://localhost:8087/api/mcp-test/saved-attractions?tripId={{trip_id}}
 
 
-### 23. MCP test - estimate trip cost
+### 28. MCP REST test - estimate trip cost
 GET http://localhost:8087/api/mcp-test/estimate?tripId={{trip_id}}
+
+
+### 29. Optional cleanup - delete trip at the end
+DELETE http://localhost:8080/api/trips/{{trip_id}}
+Authorization: Bearer {{access_token}}
