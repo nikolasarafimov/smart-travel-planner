@@ -14,5 +14,4 @@ public record UpdateTripRequest(
         @NotNull @Positive float budget,
         String currency,
         TripStatus status
-) {
-}
+){}

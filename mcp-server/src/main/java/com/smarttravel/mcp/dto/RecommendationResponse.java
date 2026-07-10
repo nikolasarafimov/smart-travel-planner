@@ -8,6 +8,7 @@ public record RecommendationResponse(
         String description,
         float estimatedPrice,
         Double rating,
-        String source
+        String source,
+        String externalPlaceId
 ) {
 }

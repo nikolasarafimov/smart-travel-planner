@@ -121,12 +121,20 @@ public class RecommendationService {
     }
 
     public List<Recommendation> getHotels(String destination, BigDecimal budget) {
-        List<Recommendation> localRecommendations =
-                recommendationRepository.findByDestinationIgnoreCaseAndTypeAndEstimatedPriceLessThanEqual(
-                        destination,
-                        RecommendationType.HOTEL,
-                        budget
-                );
+        List<Recommendation> localRecommendations;
+
+        if (budget == null) {
+            localRecommendations = recommendationRepository.findByDestinationIgnoreCaseAndType(
+                    destination,
+                    RecommendationType.HOTEL
+            );
+        } else {
+            localRecommendations = recommendationRepository.findByDestinationIgnoreCaseAndTypeAndEstimatedPriceLessThanEqual(
+                    destination,
+                    RecommendationType.HOTEL,
+                    budget
+            );
+        }
 
         List<Recommendation> seedRecommendations = seedOnly(localRecommendations);
 

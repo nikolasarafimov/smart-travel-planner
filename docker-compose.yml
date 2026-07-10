@@ -93,7 +93,7 @@ services:
       - "8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
     depends_on:
       - consul
       - recommendation-db
@@ -143,7 +143,7 @@ services:
       - "8087:8087"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MCP_CLIENT_SECRET: ${MCP_CLIENT_SECRET}
+      MCP_CLIENT_SECRET: ${MCP_CLIENT_SECRET:?MCP_CLIENT_SECRET is required}
     depends_on:
       - consul
       - keycloak

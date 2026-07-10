@@ -3,7 +3,6 @@ package com.smarttravel.recommendation.config;
 import com.smarttravel.recommendation.model.Recommendation;
 import com.smarttravel.recommendation.model.RecommendationType;
 import com.smarttravel.recommendation.repository.RecommendationRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 

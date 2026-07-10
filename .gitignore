@@ -4,6 +4,12 @@ build/
 .gradle/
 out/
 
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+npm-debug.log*
+
 # IntelliJ
 .idea/
 *.iml

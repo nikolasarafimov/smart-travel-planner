@@ -4,14 +4,24 @@ Content-Type: application/x-www-form-urlencoded
 
 client_id=smart-travel-client&username=demo-user&password=demo-pass&grant_type=password
 
+> {%
+    client.global.set("access_token", response.body.access_token);
+%}
+
 
 ### 2. Gateway health
 GET http://localhost:8080/actuator/health
 
 
-### 3. Get recommendations through Gateway
-GET http://localhost:8080/api/recommendations?destination=Paris
+### 3. Get Paris seed recommendations through Gateway
+GET http://localhost:8080/api/recommendations?destination=Paris&type=ATTRACTION
 Authorization: Bearer {{access_token}}
+
+> {%
+    if (response.body.length > 0) {
+        client.global.set("recommendation_id", response.body[0].id);
+    }
+%}
 
 
 ### 4. Create trip through Gateway
@@ -22,29 +32,38 @@ Content-Type: application/json
 {
   "userId": "demo-user",
   "destination": "Paris",
-  "startDate": "2026-07-10",
-  "endDate": "2026-07-15",
+  "startDate": "2027-07-10",
+  "endDate": "2027-07-15",
   "budget": 800,
   "currency": "EUR"
 }
 
+> {%
+    client.global.set("trip_id", response.body.id);
+%}
 
-### 5. Get recommendations for trip through Trip Service -> Recommendation Service
-GET http://localhost:8080/api/trips/1/recommendations
+
+### 5. Trip Service calls Recommendation Service through Feign
+GET http://localhost:8080/api/trips/{{trip_id}}/recommendations
 Authorization: Bearer {{access_token}}
 
 
-### 6. Save recommendation
-POST http://localhost:8080/api/recommendations/1/save
+### 6. Save recommendation to trip
+POST http://localhost:8080/api/recommendations/{{recommendation_id}}/save
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
 {
-  "tripId": 1,
+  "tripId": {{trip_id}},
   "userId": "demo-user"
 }
 
 
-### 7. Estimate trip cost through Trip Service
-GET http://localhost:8080/api/trips/1/estimated-cost
+### 7. Get saved recommendations
+GET http://localhost:8080/api/recommendations/saved?tripId={{trip_id}}
+Authorization: Bearer {{access_token}}
+
+
+### 8. Estimate trip cost through Trip Service
+GET http://localhost:8080/api/trips/{{trip_id}}/estimated-cost
 Authorization: Bearer {{access_token}}

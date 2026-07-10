@@ -13,9 +13,4 @@ public record CreateTripRequest (
     @NotNull LocalDate endDate,
     @NotNull @Positive float budget,
     String currency
-
-    ){}
-
-
-
-
+){}

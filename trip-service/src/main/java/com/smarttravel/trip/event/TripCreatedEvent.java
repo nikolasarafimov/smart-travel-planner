@@ -10,5 +10,4 @@ public record TripCreatedEvent(
         LocalDate endDate,
         float budget,
         String currency
-) {
-}
+){}

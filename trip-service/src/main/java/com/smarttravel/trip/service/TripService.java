@@ -12,11 +12,8 @@ import com.smarttravel.trip.model.Trip;
 import com.smarttravel.trip.model.TripStatus;
 import com.smarttravel.trip.repository.TripRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -34,7 +31,7 @@ public class TripService {
                 .startDate(request.startDate())
                 .endDate(request.endDate())
                 .budget(request.budget())
-                .currency(request.currency() == null ? "EURO" : request.currency())
+                .currency(request.currency() == null || request.currency().isBlank() ? "EUR" : request.currency())
                 .status(TripStatus.PLANNED)
                 .build();
 

@@ -11,9 +11,15 @@ public record GeoapifyProperties(
         String placeId,
 
         String name,
+
         String formatted,
+
+        @JsonProperty("address_line1")
         String address_line1,
+
+        @JsonProperty("address_line2")
         String address_line2,
+
         String city,
         String country,
         Double lat,

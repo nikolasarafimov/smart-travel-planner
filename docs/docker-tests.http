@@ -85,8 +85,8 @@ Content-Type: application/json
 {
   "userId": "demo-user",
   "destination": "Paris",
-  "startDate": "2026-07-10",
-  "endDate": "2026-07-15",
+  "startDate": "2027-07-10",
+  "endDate": "2027-07-15",
   "budget": 800,
   "currency": "EUR"
 }
@@ -119,11 +119,11 @@ Content-Type: application/json
 {
   "userId": "demo-user",
   "destination": "Paris",
-  "startDate": "2026-07-10",
-  "endDate": "2026-07-15",
+  "startDate": "2027-07-10",
+  "endDate": "2027-07-15",
   "budget": 800,
   "currency": "EUR",
-  "status": "PLANNED"
+  "status": "COMPLETED"
 }
 
 

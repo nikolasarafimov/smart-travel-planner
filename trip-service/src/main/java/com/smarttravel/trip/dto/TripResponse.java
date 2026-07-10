@@ -15,5 +15,4 @@ public record TripResponse(
         String currency,
         TripStatus status,
         LocalDateTime createdAt
-) {
-}
+){}
