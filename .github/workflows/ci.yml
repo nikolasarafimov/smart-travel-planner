@@ -28,20 +28,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      - name: Make Maven Wrapper executable
-        run: chmod +x mvnw
+      - name: Verify Maven
+        run: mvn --version
 
       - name: Build and test ${{ matrix.service }}
-        run: ./mvnw --batch-mode -f ${{ matrix.service }}/pom.xml clean verify
+        run: mvn --batch-mode -f ${{ matrix.service }}/pom.xml clean verify
 
   frontend:
     name: Build Frontend
@@ -53,7 +53,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -74,7 +74,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Validate Docker Compose
         env:
