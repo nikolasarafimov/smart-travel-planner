@@ -4,7 +4,7 @@ import com.smarttravel.recommendation.dto.ExternalApiStatusResponse;
 import com.smarttravel.recommendation.dto.SaveRecommendationRequest;
 import com.smarttravel.recommendation.model.Recommendation;
 import com.smarttravel.recommendation.model.RecommendationType;
-import com.smarttravel.recommendation.model.SavedRecommendation;
+import com.smarttravel.recommendation.dto.SavedRecommendationResponse;
 import com.smarttravel.recommendation.service.RecommendationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -71,7 +71,7 @@ public class RecommendationController {
     }
 
     @PostMapping("/{id}/save")
-    public SavedRecommendation saveRecommendation(
+    public SavedRecommendationResponse saveRecommendation(
             @PathVariable @Positive Long id,
             @Valid @RequestBody SaveRecommendationRequest request) {
 
@@ -79,7 +79,7 @@ public class RecommendationController {
     }
 
     @GetMapping("/saved")
-    public List<SavedRecommendation> getSavedRecommendations(
+    public List<SavedRecommendationResponse> getSavedRecommendations(
             @RequestParam @Positive Long tripId) {
 
         return recommendationService.getSavedRecommendations(tripId);

@@ -11,6 +11,8 @@ import com.smarttravel.recommendation.repository.SavedRecommendationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import com.smarttravel.recommendation.dto.SavedRecommendationResponse;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -112,7 +114,8 @@ public class RecommendationService {
         );
     }
 
-    public SavedRecommendation saveRecommendation(
+    @Transactional
+    public SavedRecommendationResponse saveRecommendation(
             Long recommendationId,
             SaveRecommendationRequest request) {
 
@@ -132,14 +135,25 @@ public class RecommendationService {
                         .recommendation(recommendation)
                         .build();
 
-        return savedRecommendationRepository.save(savedRecommendation);
+        SavedRecommendation saved =
+                savedRecommendationRepository.save(savedRecommendation);
+
+        return SavedRecommendationResponse.from(saved);
     }
 
-    public List<SavedRecommendation> getSavedRecommendations(Long tripId) {
-        return savedRecommendationRepository.findByTripId(tripId);
+    @Transactional(readOnly = true)
+    public List<SavedRecommendationResponse> getSavedRecommendations(
+            Long tripId) {
+
+        return savedRecommendationRepository.findByTripId(tripId)
+                .stream()
+                .map(SavedRecommendationResponse::from)
+                .toList();
     }
 
+    @Transactional(readOnly = true)
     public BigDecimal estimateTripCost(Long tripId) {
+
         return savedRecommendationRepository.findByTripId(tripId)
                 .stream()
                 .map(SavedRecommendation::getRecommendation)
