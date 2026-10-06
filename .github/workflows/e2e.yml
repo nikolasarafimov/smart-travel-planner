@@ -1,0 +1,317 @@
+name: E2E
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Full Stack E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      MCP_CLIENT_SECRET: ci-mcp-secret
+      GEOAPIFY_API_KEY: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+
+      - name: Start full application stack
+        run: docker compose up -d --build
+
+      - name: Wait for services
+        run: |
+          wait_for_url() {
+            url="$1"
+            name="$2"
+
+            echo "Waiting for $name..."
+
+            for attempt in $(seq 1 60); do
+              if curl --fail --silent --show-error "$url" > /dev/null; then
+                echo "$name is ready."
+                return 0
+              fi
+
+              echo "Attempt $attempt/60 - $name is not ready yet."
+              sleep 5
+            done
+
+            echo "$name failed to become ready."
+            docker compose ps
+            exit 1
+          }
+
+          wait_for_url \
+            "http://localhost:8086/realms/smart-travel/.well-known/openid-configuration" \
+            "Keycloak"
+
+          wait_for_url \
+            "http://localhost:8080/actuator/health" \
+            "API Gateway"
+
+          wait_for_url \
+            "http://localhost:8081/actuator/health" \
+            "Trip Service"
+
+          wait_for_url \
+            "http://localhost:8082/actuator/health" \
+            "Recommendation Service"
+
+          wait_for_url \
+            "http://localhost:8087/actuator/health" \
+            "MCP Server"
+
+          wait_for_url \
+            "http://localhost:3000" \
+            "Frontend"
+
+      - name: Authenticate with Keycloak
+        run: |
+          TOKEN_RESPONSE=$(curl --fail --silent --show-error \
+            -X POST \
+            "http://localhost:8086/realms/smart-travel/protocol/openid-connect/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=smart-travel-client" \
+            -d "username=demo-user" \
+            -d "password=demo-pass" \
+            -d "grant_type=password")
+
+          ACCESS_TOKEN=$(python3 -c \
+            'import json,sys; print(json.load(sys.stdin).get("access_token", ""))' \
+            <<< "$TOKEN_RESPONSE")
+
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "Keycloak did not return an access token."
+            exit 1
+          fi
+
+          echo "Keycloak authentication successful."
+
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Verify protected API rejects unauthenticated requests
+        run: |
+          STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            "http://localhost:8080/api/trips")
+
+          echo "Unauthenticated response status: $STATUS"
+
+          if [ "$STATUS" != "401" ]; then
+            echo "Expected HTTP 401 but received HTTP $STATUS."
+            exit 1
+          fi
+
+      - name: Test recommendations
+        run: |
+          RECOMMENDATIONS=$(curl \
+            --fail \
+            --silent \
+            --show-error \
+            --retry 10 \
+            --retry-delay 3 \
+            --retry-all-errors \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8080/api/recommendations?destination=Paris&type=ATTRACTION")
+
+          RECOMMENDATION_ID=$(python3 -c \
+            'import json,sys; data=json.load(sys.stdin); print(data[0]["id"] if data else "")' \
+            <<< "$RECOMMENDATIONS")
+
+          if [ -z "$RECOMMENDATION_ID" ]; then
+            echo "No Paris recommendation was returned."
+            exit 1
+          fi
+
+          echo "Recommendation request successful."
+          echo "RECOMMENDATION_ID=$RECOMMENDATION_ID" >> "$GITHUB_ENV"
+
+      - name: Create trip
+        run: |
+          TRIP=$(curl \
+            --fail \
+            --silent \
+            --show-error \
+            -X POST \
+            "http://localhost:8080/api/trips" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "userId": "demo-user",
+              "destination": "Paris",
+              "startDate": "2027-07-10",
+              "endDate": "2027-07-15",
+              "budget": 800,
+              "currency": "EUR"
+            }')
+
+          TRIP_ID=$(python3 -c \
+            'import json,sys; print(json.load(sys.stdin).get("id", ""))' \
+            <<< "$TRIP")
+
+          if [ -z "$TRIP_ID" ]; then
+            echo "Trip creation did not return an ID."
+            exit 1
+          fi
+
+          echo "Trip created successfully with ID $TRIP_ID."
+          echo "TRIP_ID=$TRIP_ID" >> "$GITHUB_ENV"
+
+      - name: Test trip retrieval
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8080/api/trips/$TRIP_ID" \
+            > /dev/null
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8080/api/trips?userId=demo-user" \
+            > /dev/null
+
+          echo "Trip retrieval successful."
+
+      - name: Test Feign communication
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --retry 5 \
+            --retry-delay 2 \
+            --retry-all-errors \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8080/api/trips/$TRIP_ID/recommendations" \
+            > /dev/null
+
+          echo "Trip Service to Recommendation Service communication successful."
+
+      - name: Save recommendation to trip
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -X POST \
+            "http://localhost:8080/api/recommendations/$RECOMMENDATION_ID/save" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"tripId\": $TRIP_ID,
+              \"userId\": \"demo-user\"
+            }" \
+            > /dev/null
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8080/api/recommendations/saved?tripId=$TRIP_ID" \
+            > /dev/null
+
+          echo "Recommendation persistence successful."
+
+      - name: Test cost estimation
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8080/api/trips/$TRIP_ID/estimated-cost" \
+            > /dev/null
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8080/api/recommendations/estimate?tripId=$TRIP_ID" \
+            > /dev/null
+
+          echo "Cost estimation successful."
+
+      - name: Test MCP integration
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --retry 5 \
+            --retry-delay 2 \
+            --retry-all-errors \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8087/api/mcp-test/recommend-places?destination=Paris&type=ATTRACTION&limit=3" \
+            > /dev/null
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8087/api/mcp-test/trip/$TRIP_ID" \
+            > /dev/null
+
+          echo "MCP integration successful."
+
+      - name: Delete test trip
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -X DELETE \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "http://localhost:8080/api/trips/$TRIP_ID" \
+            > /dev/null
+
+          echo "E2E test data cleaned up."
+
+      - name: Show Docker status
+        if: always()
+        run: docker compose ps
+
+      - name: Capture Docker logs on failure
+        if: failure()
+        run: docker compose logs --no-color > docker-compose.log
+
+      - name: Upload Docker logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-docker-logs
+          path: docker-compose.log
+          retention-days: 7
+
+      - name: Shut down application stack
+        if: always()
+        run: docker compose down -v --remove-orphans
