@@ -9,13 +9,20 @@ on:
     branches:
       - main
 
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend:
     name: Build ${{ matrix.service }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     strategy:
       fail-fast: false
@@ -36,9 +43,7 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-
-      - name: Verify Maven
-        run: mvn --version
+          cache-dependency-path: ${{ matrix.service }}/pom.xml
 
       - name: Build and test ${{ matrix.service }}
         run: mvn --batch-mode -f ${{ matrix.service }}/pom.xml clean verify
@@ -46,6 +51,7 @@ jobs:
   frontend:
     name: Build Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     defaults:
       run:
@@ -68,16 +74,25 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-  docker-compose:
-    name: Validate Docker Compose
+  docker:
+    name: Build Docker Images
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    needs:
+      - backend
+      - frontend
+
+    env:
+      MCP_CLIENT_SECRET: ci-placeholder
+      GEOAPIFY_API_KEY: ci-placeholder
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
       - name: Validate Docker Compose
-        env:
-          MCP_CLIENT_SECRET: ci-placeholder
-          GEOAPIFY_API_KEY: ci-placeholder
         run: docker compose config --quiet
+
+      - name: Build Docker images
+        run: docker compose build
