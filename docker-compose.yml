@@ -1,10 +1,16 @@
 services:
   consul:
-    image: hashicorp/consul:latest
+    image: hashicorp/consul:1.21
     container_name: smart-travel-consul
     ports:
       - "8500:8500"
     command: "agent -dev -client=0.0.0.0"
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
 
   recommendation-db:
@@ -18,6 +24,16 @@ services:
       POSTGRES_PASSWORD: recommendation_pass
     volumes:
       - recommendation_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U recommendation_user -d recommendation_db"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
 
   trip-db:
@@ -31,10 +47,20 @@ services:
       POSTGRES_PASSWORD: trip_pass
     volumes:
       - trip_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U trip_user -d trip_db"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
 
   kafka:
-    image: apache/kafka:latest
+    image: apache/kafka:4.1.0
     container_name: smart-travel-kafka
     hostname: kafka
     ports:
@@ -54,10 +80,20 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 1
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
     restart: unless-stopped
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: provectuslabs/kafka-ui:v0.7.2
     container_name: smart-travel-kafka-ui
     ports:
       - "8085:8080"
@@ -65,7 +101,8 @@ services:
       KAFKA_CLUSTERS_0_NAME: smart-travel-kafka
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
 
   keycloak:
@@ -95,10 +132,14 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
     depends_on:
-      - consul
-      - recommendation-db
-      - kafka
-      - keycloak
+      consul:
+        condition: service_healthy
+      recommendation-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
     restart: on-failure
 
   trip-service:
@@ -111,11 +152,16 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
-      - consul
-      - trip-db
-      - kafka
-      - keycloak
-      - recommendation-service
+      consul:
+        condition: service_healthy
+      trip-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      recommendation-service:
+        condition: service_started
     restart: on-failure
 
   api-gateway:
@@ -128,10 +174,14 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
-      - consul
-      - keycloak
-      - recommendation-service
-      - trip-service
+      consul:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      recommendation-service:
+        condition: service_started
+      trip-service:
+        condition: service_started
     restart: on-failure
 
   mcp-server:
@@ -145,9 +195,12 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       MCP_CLIENT_SECRET: ${MCP_CLIENT_SECRET:?MCP_CLIENT_SECRET is required}
     depends_on:
-      - consul
-      - keycloak
-      - api-gateway
+      consul:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      api-gateway:
+        condition: service_started
     restart: on-failure
 
   frontend:
@@ -158,11 +211,16 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - api-gateway
-      - keycloak
-      - trip-service
-      - recommendation-service
-      - mcp-server
+      api-gateway:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      trip-service:
+        condition: service_started
+      recommendation-service:
+        condition: service_started
+      mcp-server:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

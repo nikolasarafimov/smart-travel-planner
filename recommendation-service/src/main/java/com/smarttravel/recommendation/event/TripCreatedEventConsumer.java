@@ -9,7 +9,8 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class TripCreatedEventConsumer {
 
-    private static final Logger logger = LoggerFactory.getLogger(TripCreatedEventConsumer.class);
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(TripCreatedEventConsumer.class);
 
     private final ObjectMapper objectMapper;
 
@@ -23,18 +24,21 @@ public class TripCreatedEventConsumer {
     )
     public void handleTripCreatedEvent(String message) {
         try {
-            TripCreatedEvent event = objectMapper.readValue(message, TripCreatedEvent.class);
+            TripCreatedEvent event =
+                    objectMapper.readValue(message, TripCreatedEvent.class);
 
-            logger.info(
+            LOGGER.info(
                     "Received TripCreatedEvent: tripId={}, destination={}, budget={} {}",
                     event.tripId(),
                     event.destination(),
                     event.budget(),
                     event.currency()
             );
-
         } catch (RuntimeException e) {
-            throw new RuntimeException("Failed to deserialize TripCreatedEvent", e);
+            throw new IllegalStateException(
+                    "Failed to deserialize TripCreatedEvent",
+                    e
+            );
         }
     }
 }

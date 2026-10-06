@@ -3,7 +3,11 @@ import keycloak from './auth/keycloak'
 import { apiClient, utilityClient, mcpClient, getErrorMessage } from './api/apiClient'
 
 function formatDate(date) {
-    return date.toISOString().split('T')[0]
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
 }
 
 function addDays(days) {
@@ -12,9 +16,9 @@ function addDays(days) {
     return formatDate(date)
 }
 
-function createInitialTripForm() {
+function createInitialTripForm(userId = 'demo-user') {
     return {
-        userId: 'demo-user',
+        userId,
         destination: 'Paris',
         startDate: addDays(1),
         endDate: addDays(6),
@@ -49,11 +53,6 @@ function formatMoney(value) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2
     }).format(Number.isNaN(amount) ? 0 : amount)} EURO`
-}
-
-function displayCurrency(currency) {
-    if (!currency) return ''
-    return currency === 'EUR' ? 'EURO' : currency
 }
 
 function normalizeJsonForDisplay(value) {
@@ -282,6 +281,8 @@ function RecommendationCard({ recommendation, onSave }) {
 }
 
 export default function App() {
+    const currentUser = keycloak.tokenParsed?.preferred_username || 'authenticated-user'
+
     const [activePage, setActivePage] = useState('dashboard')
     const [toast, setToast] = useState(null)
 
@@ -295,7 +296,7 @@ export default function App() {
     const [externalApiStatus, setExternalApiStatus] = useState(null)
 
     const [trips, setTrips] = useState([])
-    const [tripForm, setTripForm] = useState(createInitialTripForm)
+    const [tripForm, setTripForm] = useState(() => createInitialTripForm(currentUser))
     const [selectedTripId, setSelectedTripId] = useState('')
     const [selectedTrip, setSelectedTrip] = useState(null)
     const [tripRecommendations, setTripRecommendations] = useState([])
@@ -316,8 +317,6 @@ export default function App() {
     const [mcpLimit, setMcpLimit] = useState(3)
     const [mcpTripId, setMcpTripId] = useState('')
     const [mcpResult, setMcpResult] = useState(null)
-
-    const currentUser = keycloak.tokenParsed?.preferred_username || 'authenticated-user'
 
     const totalBudget = useMemo(() => {
         return trips.reduce((sum, trip) => sum + Number(trip.budget || 0), 0)
@@ -401,15 +400,41 @@ export default function App() {
 
     const loadTrips = async () => {
         try {
-            const response = await apiClient.get('/trips')
+            const response = await apiClient.get('/trips', {
+                params: { userId: currentUser }
+            })
+
             const loadedTrips = response.data || []
             setTrips(loadedTrips)
 
-            if (loadedTrips.length > 0 && !selectedTripId) {
-                const firstTripId = String(loadedTrips[0].id)
+            if (loadedTrips.length === 0) {
+                setSelectedTripId('')
+                setSelectedTrip(null)
+                setSaveTripId('')
+                setSavedTripId('')
+                setMcpTripId('')
+                return
+            }
+
+            const availableTripIds = new Set(
+                loadedTrips.map((trip) => String(trip.id))
+            )
+            const firstTripId = String(loadedTrips[0].id)
+
+            if (!availableTripIds.has(String(selectedTripId))) {
                 setSelectedTripId(firstTripId)
+                setSelectedTrip(null)
+            }
+
+            if (!availableTripIds.has(String(saveTripId))) {
                 setSaveTripId(firstTripId)
+            }
+
+            if (!availableTripIds.has(String(savedTripId))) {
                 setSavedTripId(firstTripId)
+            }
+
+            if (!availableTripIds.has(String(mcpTripId))) {
                 setMcpTripId(firstTripId)
             }
         } catch (error) {
@@ -433,7 +458,7 @@ export default function App() {
     }
 
     const resetTripFormToDemo = () => {
-        setTripForm(createInitialTripForm())
+        setTripForm(createInitialTripForm(currentUser))
     }
 
     const clearTripForm = () => {
@@ -450,11 +475,17 @@ export default function App() {
     const createTrip = async (event) => {
         event.preventDefault()
 
+        if (tripForm.endDate < tripForm.startDate) {
+            showToast('warning', 'End date must be on or after the start date.')
+            return
+        }
+
         try {
             const response = await apiClient.post('/trips', {
                 ...tripForm,
+                userId: currentUser,
                 budget: Number(tripForm.budget),
-                currency: 'EUR'
+                currency: tripForm.currency || 'EUR'
             })
 
             const created = response.data
@@ -487,12 +518,11 @@ export default function App() {
     const updateTripStatus = async (trip, status) => {
         try {
             await apiClient.put('/trips/' + trip.id, {
-                userId: trip.userId || currentUser,
                 destination: trip.destination,
                 startDate: trip.startDate,
                 endDate: trip.endDate,
                 budget: Number(trip.budget),
-                currency: 'EUR',
+                currency: trip.currency || 'EUR',
                 status
             })
 
@@ -509,7 +539,6 @@ export default function App() {
             await apiClient.delete('/trips/' + id)
             showToast('success', 'Trip deleted.')
             setSelectedTrip(null)
-            setSelectedTripId('')
             await loadTrips()
         } catch (error) {
             showToast('error', 'Failed to delete trip: ' + getErrorMessage(error))
@@ -633,6 +662,16 @@ export default function App() {
     }
 
     const runMcpRecommendPlaces = async () => {
+        if (!mcpDestination.trim()) {
+            showToast('warning', 'Enter an MCP destination first.')
+            return
+        }
+
+        if (Number(mcpLimit) <= 0) {
+            showToast('warning', 'MCP limit must be greater than zero.')
+            return
+        }
+
         try {
             const params = new URLSearchParams()
             params.set('destination', mcpDestination)
@@ -894,27 +933,53 @@ export default function App() {
                             </div>
 
                             <label>User ID</label>
-                            <input name="userId" value={tripForm.userId} onChange={handleTripFormChange} />
+                            <input name="userId" value={tripForm.userId} readOnly />
 
                             <label>Destination</label>
-                            <input name="destination" value={tripForm.destination} onChange={handleTripFormChange} />
+                            <input
+                                name="destination"
+                                value={tripForm.destination}
+                                onChange={handleTripFormChange}
+                                required
+                            />
 
                             <div className="form-row">
                                 <div>
                                     <label>Start date</label>
-                                    <input type="date" name="startDate" value={tripForm.startDate} onChange={handleTripFormChange} />
+                                    <input
+                                        type="date"
+                                        name="startDate"
+                                        value={tripForm.startDate}
+                                        onChange={handleTripFormChange}
+                                        required
+                                    />
                                 </div>
 
                                 <div>
                                     <label>End date</label>
-                                    <input type="date" name="endDate" value={tripForm.endDate} onChange={handleTripFormChange} />
+                                    <input
+                                        type="date"
+                                        name="endDate"
+                                        value={tripForm.endDate}
+                                        onChange={handleTripFormChange}
+                                        min={tripForm.startDate || undefined}
+                                        required
+                                    />
                                 </div>
                             </div>
 
                             <div className="form-row">
                                 <div>
                                     <label>Budget</label>
-                                    <input type="number" name="budget" value={tripForm.budget} onChange={handleTripFormChange} />
+                                    <input
+                                        type="number"
+                                        name="budget"
+                                        value={tripForm.budget}
+                                        onChange={handleTripFormChange}
+                                        min="0.01"
+                                        step="0.01"
+                                        required
+                                    />
                                 </div>
 
                                 <div>
@@ -1027,7 +1092,11 @@ export default function App() {
                             <div className="search-grid">
                                 <div>
                                     <label>Destination</label>
-                                    <input value={destination} onChange={(event) => setDestination(event.target.value)} />
+                                    <input
+                                        value={destination}
+                                        onChange={(event) => setDestination(event.target.value)}
+                                        required
+                                    />
                                 </div>
 
                                 <div>
@@ -1042,7 +1111,13 @@ export default function App() {
 
                                 <div>
                                     <label>Hotel budget</label>
-                                    <input type="number" value={hotelBudget} onChange={(event) => setHotelBudget(event.target.value)} />
+                                    <input
+                                        type="number"
+                                        value={hotelBudget}
+                                        onChange={(event) => setHotelBudget(event.target.value)}
+                                        min="0"
+                                        step="0.01"
+                                    />
                                 </div>
 
                                 <div>
@@ -1187,7 +1262,10 @@ export default function App() {
                             </div>
 
                             <label>Destination</label>
-                            <input value={mcpDestination} onChange={(event) => setMcpDestination(event.target.value)} />
+                            <input
+                                value={mcpDestination}
+                                onChange={(event) => setMcpDestination(event.target.value)}
+                            />
 
                             <label>Type</label>
                             <select value={mcpType} onChange={(event) => setMcpType(event.target.value)}>
@@ -1197,7 +1275,13 @@ export default function App() {
                             </select>
 
                             <label>Limit</label>
-                            <input type="number" value={mcpLimit} onChange={(event) => setMcpLimit(event.target.value)} />
+                            <input
+                                type="number"
+                                value={mcpLimit}
+                                onChange={(event) => setMcpLimit(event.target.value)}
+                                min="1"
+                                max="50"
+                            />
 
                             <label>Trip ID</label>
                             <input value={mcpTripId} onChange={(event) => setMcpTripId(event.target.value)} />
@@ -1227,7 +1311,7 @@ export default function App() {
                                 <p>Response returned by MCP Server.</p>
                             </div>
 
-                            {mcpResult ? (
+                            {mcpResult !== null ? (
                                 <JsonBlock data={mcpResult} />
                             ) : (
                                 <EmptyState title="No MCP result yet" text="Run one MCP test from the left panel." />
@@ -1332,8 +1416,8 @@ export default function App() {
                             </div>
 
                             <div className="terminal-box">
-                                <code>.\mvnw.cmd -f trip-service\pom.xml -Dtest=TripRecommendationConsumerPactTest test</code>
-                                <code>.\mvnw.cmd -f recommendation-service\pom.xml -Dtest=RecommendationProviderPactVerificationTest test</code>
+                                <code>cd trip-service; .\mvnw.cmd -Dtest=TripRecommendationConsumerPactTest test</code>
+                                <code>cd recommendation-service; .\mvnw.cmd -Dtest=RecommendationProviderPactVerificationTest test</code>
                             </div>
                         </div>
                     </section>

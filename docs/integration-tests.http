@@ -18,7 +18,7 @@ GET http://localhost:8080/api/recommendations?destination=Paris&type=ATTRACTION
 Authorization: Bearer {{access_token}}
 
 > {%
-    if (response.body.length > 0) {
+    if (Array.isArray(response.body) && response.body.length > 0) {
         client.global.set("recommendation_id", response.body[0].id);
     }
 %}

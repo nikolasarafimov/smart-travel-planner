@@ -6,56 +6,103 @@ import au.com.dius.pact.provider.junit5.PactVerificationInvocationContextProvide
 import au.com.dius.pact.provider.junitsupport.Provider;
 import au.com.dius.pact.provider.junitsupport.State;
 import au.com.dius.pact.provider.junitsupport.loader.PactFolder;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.smarttravel.recommendation.external.GeoapifyPlacesClient;
+import com.smarttravel.recommendation.model.Recommendation;
+import com.smarttravel.recommendation.model.RecommendationType;
+import com.smarttravel.recommendation.repository.RecommendationRepository;
+import com.smarttravel.recommendation.repository.SavedRecommendationRepository;
 import org.apache.hc.core5.http.HttpRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+
+import static org.mockito.Mockito.when;
+
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
+                "spring.cloud.consul.enabled=false",
+                "spring.cloud.consul.discovery.enabled=false",
+                "spring.cloud.consul.discovery.register=false",
+                "spring.kafka.listener.auto-startup=false",
+                "external.geoapify.enabled=false",
+                "spring.autoconfigure.exclude="
+                        + "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,"
+                        + "org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration,"
+                        + "org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration"
+        }
+)
 @Provider("recommendation-service")
 @PactFolder("src/test/resources/pacts")
 class RecommendationProviderPactVerificationTest {
 
-    private final RestClient restClient = RestClient.builder().build();
+    @LocalServerPort
+    private int port;
+
+    @MockitoBean
+    private RecommendationRepository recommendationRepository;
+
+    @MockitoBean
+    private SavedRecommendationRepository savedRecommendationRepository;
+
+    @MockitoBean
+    private GeoapifyPlacesClient geoapifyPlacesClient;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
+
+    @BeforeEach
+    void setUp(PactVerificationContext context) {
+        context.setTarget(new HttpTestTarget("localhost", port, "/"));
+
+        Jwt jwt = Jwt.withTokenValue("pact-test-token")
+                .header("alg", "none")
+                .claim("sub", "pact-test-user")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+
+        when(jwtDecoder.decode("pact-test-token")).thenReturn(jwt);
+    }
 
     @State("Paris recommendations exist")
     void parisRecommendationsExist() {
+        Recommendation recommendation = new Recommendation(
+                1L,
+                "Paris",
+                "Eiffel Tower",
+                RecommendationType.ATTRACTION,
+                "One of the most famous landmarks in Paris.",
+                new BigDecimal("30"),
+                4.8,
+                "Seed Data",
+                null
+        );
+
+        when(recommendationRepository.findByDestinationIgnoreCase("Paris"))
+                .thenReturn(List.of(recommendation));
     }
 
     @TestTemplate
     @ExtendWith(PactVerificationInvocationContextProvider.class)
-    void verifyPact(PactVerificationContext context, HttpRequest request) {
-        context.setTarget(new HttpTestTarget("localhost", 8082, "/"));
+    void verifyPact(
+            PactVerificationContext context,
+            HttpRequest request) {
 
-        String token = getAccessToken();
-
-        request.addHeader("Authorization", "Bearer " + token);
+        request.addHeader(
+                "Authorization",
+                "Bearer pact-test-token"
+        );
 
         context.verifyInteraction();
-    }
-
-    private String getAccessToken() {
-        KeycloakTokenResponse response = restClient.post()
-                .uri("http://localhost:8086/realms/smart-travel/protocol/openid-connect/token")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body("client_id=smart-travel-client"
-                        + "&username=demo-user"
-                        + "&password=demo-pass"
-                        + "&grant_type=password")
-                .retrieve()
-                .body(KeycloakTokenResponse.class);
-
-        if (response == null || response.accessToken() == null) {
-            throw new RuntimeException("Could not get Keycloak access token");
-        }
-
-        return response.accessToken();
-    }
-
-    record KeycloakTokenResponse(
-            @JsonProperty("access_token")
-            String accessToken
-    ) {
     }
 }

@@ -11,7 +11,7 @@ public record UpdateTripRequest(
         @NotBlank String destination,
         @NotNull LocalDate startDate,
         @NotNull LocalDate endDate,
-        @NotNull @Positive float budget,
+        @Positive float budget,
         String currency,
         TripStatus status
-){}
+) {}

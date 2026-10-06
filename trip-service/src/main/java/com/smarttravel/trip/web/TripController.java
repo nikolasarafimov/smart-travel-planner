@@ -8,7 +8,17 @@ import com.smarttravel.trip.service.TripService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.util.List;
 
 @RestController
@@ -26,10 +36,10 @@ public class TripController {
 
     @GetMapping
     public List<TripResponse> getAllTrips(
-            @RequestParam(required = false) String userId
-    ) {
-        if (userId != null) {
-            return tripService.getTripsByUserId(userId);
+            @RequestParam(required = false) String userId) {
+
+        if (userId != null && !userId.isBlank()) {
+            return tripService.getTripsByUserId(userId.trim());
         }
 
         return tripService.getAllTrips();
@@ -43,8 +53,8 @@ public class TripController {
     @PutMapping("/{id}")
     public TripResponse updateTrip(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateTripRequest request
-    ) {
+            @Valid @RequestBody UpdateTripRequest request) {
+
         return tripService.updateTrip(id, request);
     }
 
@@ -55,17 +65,14 @@ public class TripController {
     }
 
     @GetMapping("/{id}/recommendations")
-    public List<RecommendationResponse> getRecommendationsForTrip(@PathVariable Long id) {
+    public List<RecommendationResponse> getRecommendationsForTrip(
+            @PathVariable Long id) {
+
         return tripService.getRecommendationsForTrip(id);
     }
 
     @GetMapping("/{id}/estimated-cost")
     public float getEstimatedCostForTrip(@PathVariable Long id) {
         return tripService.getEstimatedCostForTrip(id);
-    }
-
-    @GetMapping("/health-test")
-    public String healthTest() {
-        return "Trip Service is running";
     }
 }

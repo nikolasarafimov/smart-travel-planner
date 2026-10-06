@@ -25,5 +25,4 @@ public record GeoapifyProperties(
         Double lat,
         Double lon,
         List<String> categories
-) {
-}
+) {}

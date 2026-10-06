@@ -1,21 +1,23 @@
 package com.smarttravel.recommendation.service;
 
+import com.smarttravel.recommendation.dto.ExternalApiStatusResponse;
 import com.smarttravel.recommendation.dto.SaveRecommendationRequest;
+import com.smarttravel.recommendation.external.GeoapifyPlacesClient;
 import com.smarttravel.recommendation.model.Recommendation;
 import com.smarttravel.recommendation.model.RecommendationType;
 import com.smarttravel.recommendation.model.SavedRecommendation;
 import com.smarttravel.recommendation.repository.RecommendationRepository;
 import com.smarttravel.recommendation.repository.SavedRecommendationRepository;
-import com.smarttravel.recommendation.external.GeoapifyPlacesClient;
-import com.smarttravel.recommendation.dto.ExternalApiStatusResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -36,178 +38,99 @@ public class RecommendationService {
         );
     }
 
-    private List<Recommendation> seedOnly(List<Recommendation> recommendations) {
-        if (recommendations == null || recommendations.isEmpty()) {
-            return List.of();
-        }
+    public List<Recommendation> getRecommendations(
+            String destination,
+            RecommendationType type) {
 
-        return recommendations.stream()
-                .filter(this::isSeedRecommendation)
-                .toList();
-    }
+        String normalizedDestination = destination.trim();
 
-    private boolean isSeedRecommendation(Recommendation recommendation) {
-        String source = recommendation.getSource();
-
-        return source == null ||
-                source.isBlank() ||
-                !source.toLowerCase().contains("geoapify");
-    }
-
-    private List<Recommendation> persistLiveRecommendations(List<Recommendation> recommendations) {
-        if (recommendations == null || recommendations.isEmpty()) {
-            return List.of();
-        }
-
-        Map<String, Recommendation> uniqueRecommendations = new LinkedHashMap<>();
-
-        for (Recommendation recommendation : recommendations) {
-            String key = recommendation.getExternalPlaceId();
-
-            if (key == null || key.isBlank()) {
-                key = recommendation.getDestination() + "|" + recommendation.getType() + "|" + recommendation.getName();
-            }
-
-            uniqueRecommendations.putIfAbsent(key, recommendation);
-        }
-
-        return uniqueRecommendations.values()
-                .stream()
-                .map(this::findExistingOrSaveLiveRecommendation)
-                .toList();
-    }
-
-    private Recommendation findExistingOrSaveLiveRecommendation(Recommendation recommendation) {
-        if (recommendation.getExternalPlaceId() == null || recommendation.getExternalPlaceId().isBlank()) {
-            return recommendationRepository.save(recommendation);
-        }
-
-        return recommendationRepository
-                .findByExternalPlaceId(recommendation.getExternalPlaceId())
-                .orElseGet(() -> recommendationRepository.save(recommendation));
-    }
-
-    public List<Recommendation> getRecommendations(String destination, RecommendationType type) {
         if (type != null) {
-            List<Recommendation> localRecommendations =
-                    recommendationRepository.findByDestinationIgnoreCaseAndType(destination, type);
-
-            List<Recommendation> seedRecommendations = seedOnly(localRecommendations);
-
-            if (!seedRecommendations.isEmpty()) {
-                return seedRecommendations;
-            }
-
-            List<Recommendation> liveRecommendations =
-                    geoapifyPlacesClient.searchRecommendations(destination, type, null);
-
-            if (!liveRecommendations.isEmpty()) {
-                return persistLiveRecommendations(liveRecommendations);
-            }
-
-            return localRecommendations;
+            return getRecommendationsByType(
+                    normalizedDestination,
+                    type,
+                    null
+            );
         }
 
         List<Recommendation> localRecommendations =
-                recommendationRepository.findByDestinationIgnoreCase(destination);
+                recommendationRepository.findByDestinationIgnoreCase(
+                        normalizedDestination
+                );
 
-        List<Recommendation> seedRecommendations = seedOnly(localRecommendations);
-
-        if (!seedRecommendations.isEmpty()) {
-            return seedRecommendations;
-        }
-
-        return localRecommendations;
-    }
-
-    public List<Recommendation> getHotels(String destination, BigDecimal budget) {
-        List<Recommendation> localRecommendations;
-
-        if (budget == null) {
-            localRecommendations = recommendationRepository.findByDestinationIgnoreCaseAndType(
-                    destination,
-                    RecommendationType.HOTEL
-            );
-        } else {
-            localRecommendations = recommendationRepository.findByDestinationIgnoreCaseAndTypeAndEstimatedPriceLessThanEqual(
-                    destination,
-                    RecommendationType.HOTEL,
-                    budget
-            );
-        }
-
-        List<Recommendation> seedRecommendations = seedOnly(localRecommendations);
+        List<Recommendation> seedRecommendations =
+                seedOnly(localRecommendations);
 
         if (!seedRecommendations.isEmpty()) {
             return seedRecommendations;
         }
 
-        List<Recommendation> liveRecommendations =
-                geoapifyPlacesClient.searchRecommendations(destination, RecommendationType.HOTEL, budget);
+        List<Recommendation> liveRecommendations = Stream.of(
+                        RecommendationType.HOTEL,
+                        RecommendationType.RESTAURANT,
+                        RecommendationType.ATTRACTION
+                )
+                .flatMap(recommendationType ->
+                        geoapifyPlacesClient.searchRecommendations(
+                                        normalizedDestination,
+                                        recommendationType,
+                                        null
+                                )
+                                .stream())
+                .toList();
 
         if (!liveRecommendations.isEmpty()) {
             return persistLiveRecommendations(liveRecommendations);
         }
 
         return localRecommendations;
+    }
+
+    public List<Recommendation> getHotels(
+            String destination,
+            BigDecimal budget) {
+
+        return getRecommendationsByType(
+                destination.trim(),
+                RecommendationType.HOTEL,
+                budget
+        );
     }
 
     public List<Recommendation> getRestaurants(String destination) {
-        List<Recommendation> localRecommendations =
-                recommendationRepository.findByDestinationIgnoreCaseAndType(
-                        destination,
-                        RecommendationType.RESTAURANT
-                );
-
-        List<Recommendation> seedRecommendations = seedOnly(localRecommendations);
-
-        if (!seedRecommendations.isEmpty()) {
-            return seedRecommendations;
-        }
-
-        List<Recommendation> liveRecommendations =
-                geoapifyPlacesClient.searchRecommendations(destination, RecommendationType.RESTAURANT, null);
-
-        if (!liveRecommendations.isEmpty()) {
-            return persistLiveRecommendations(liveRecommendations);
-        }
-
-        return localRecommendations;
+        return getRecommendationsByType(
+                destination.trim(),
+                RecommendationType.RESTAURANT,
+                null
+        );
     }
 
     public List<Recommendation> getAttractions(String destination) {
-        List<Recommendation> localRecommendations =
-                recommendationRepository.findByDestinationIgnoreCaseAndType(
-                        destination,
-                        RecommendationType.ATTRACTION
-                );
-
-        List<Recommendation> seedRecommendations = seedOnly(localRecommendations);
-
-        if (!seedRecommendations.isEmpty()) {
-            return seedRecommendations;
-        }
-
-        List<Recommendation> liveRecommendations =
-                geoapifyPlacesClient.searchRecommendations(destination, RecommendationType.ATTRACTION, null);
-
-        if (!liveRecommendations.isEmpty()) {
-            return persistLiveRecommendations(liveRecommendations);
-        }
-
-        return localRecommendations;
+        return getRecommendationsByType(
+                destination.trim(),
+                RecommendationType.ATTRACTION,
+                null
+        );
     }
 
-    public SavedRecommendation saveRecommendation(Long recommendationId, SaveRecommendationRequest request) {
-        Recommendation recommendation = recommendationRepository.findById(recommendationId)
-                .orElseThrow(() -> new RuntimeException("Recommendation not found"));
+    public SavedRecommendation saveRecommendation(
+            Long recommendationId,
+            SaveRecommendationRequest request) {
 
-        SavedRecommendation savedRecommendation = SavedRecommendation.builder()
-                .tripId(request.tripId())
-                .userId(request.userId())
-                .recommendation(recommendation)
-                .savedAt(LocalDateTime.now())
-                .build();
+        Recommendation recommendation = recommendationRepository
+                .findById(recommendationId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Recommendation with id "
+                                + recommendationId
+                                + " not found"
+                ));
+
+        SavedRecommendation savedRecommendation =
+                SavedRecommendation.builder()
+                        .tripId(request.tripId())
+                        .userId(request.userId().trim())
+                        .recommendation(recommendation)
+                        .build();
 
         return savedRecommendationRepository.save(savedRecommendation);
     }
@@ -219,7 +142,121 @@ public class RecommendationService {
     public BigDecimal estimateTripCost(Long tripId) {
         return savedRecommendationRepository.findByTripId(tripId)
                 .stream()
-                .map(saved -> saved.getRecommendation().getEstimatedPrice())
+                .map(SavedRecommendation::getRecommendation)
+                .map(Recommendation::getEstimatedPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private List<Recommendation> getRecommendationsByType(
+            String destination,
+            RecommendationType type,
+            BigDecimal maxBudget) {
+
+        List<Recommendation> localRecommendations;
+
+        if (maxBudget == null) {
+            localRecommendations =
+                    recommendationRepository
+                            .findByDestinationIgnoreCaseAndType(
+                                    destination,
+                                    type
+                            );
+        } else {
+            localRecommendations =
+                    recommendationRepository
+                            .findByDestinationIgnoreCaseAndTypeAndEstimatedPriceLessThanEqual(
+                                    destination,
+                                    type,
+                                    maxBudget
+                            );
+        }
+
+        List<Recommendation> seedRecommendations =
+                seedOnly(localRecommendations);
+
+        if (!seedRecommendations.isEmpty()) {
+            return seedRecommendations;
+        }
+
+        List<Recommendation> liveRecommendations =
+                geoapifyPlacesClient.searchRecommendations(
+                        destination,
+                        type,
+                        maxBudget
+                );
+
+        if (!liveRecommendations.isEmpty()) {
+            return persistLiveRecommendations(liveRecommendations);
+        }
+
+        return localRecommendations;
+    }
+
+    private List<Recommendation> seedOnly(
+            List<Recommendation> recommendations) {
+
+        if (recommendations == null || recommendations.isEmpty()) {
+            return List.of();
+        }
+
+        return recommendations.stream()
+                .filter(this::isSeedRecommendation)
+                .toList();
+    }
+
+    private boolean isSeedRecommendation(
+            Recommendation recommendation) {
+
+        String source = recommendation.getSource();
+
+        return source == null
+                || source.isBlank()
+                || !source.toLowerCase().contains("geoapify");
+    }
+
+    private List<Recommendation> persistLiveRecommendations(
+            List<Recommendation> recommendations) {
+
+        if (recommendations == null || recommendations.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, Recommendation> uniqueRecommendations =
+                new LinkedHashMap<>();
+
+        for (Recommendation recommendation : recommendations) {
+            String key = recommendation.getExternalPlaceId();
+
+            if (key == null || key.isBlank()) {
+                key = recommendation.getDestination()
+                        + "|"
+                        + recommendation.getType()
+                        + "|"
+                        + recommendation.getName();
+            }
+
+            uniqueRecommendations.putIfAbsent(key, recommendation);
+        }
+
+        return uniqueRecommendations.values()
+                .stream()
+                .map(this::findExistingOrSaveLiveRecommendation)
+                .toList();
+    }
+
+    private Recommendation findExistingOrSaveLiveRecommendation(
+            Recommendation recommendation) {
+
+        String externalPlaceId =
+                recommendation.getExternalPlaceId();
+
+        if (externalPlaceId == null || externalPlaceId.isBlank()) {
+            return recommendationRepository.save(recommendation);
+        }
+
+        return recommendationRepository
+                .findByExternalPlaceId(externalPlaceId)
+                .orElseGet(() ->
+                        recommendationRepository.save(recommendation));
     }
 }

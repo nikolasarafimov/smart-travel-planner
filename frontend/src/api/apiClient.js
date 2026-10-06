@@ -13,21 +13,28 @@ export const mcpClient = axios.create({
     baseURL: '/mcp-test'
 })
 
-apiClient.interceptors.request.use(async (config) => {
-    if (keycloak.authenticated) {
-        try {
-            await keycloak.updateToken(30)
-
-            config.headers = config.headers || {}
-            config.headers.Authorization = 'Bearer ' + keycloak.token
-        } catch (error) {
-            console.error('Failed to refresh token', error)
-            keycloak.login()
-        }
+async function attachAccessToken(config) {
+    if (!keycloak.authenticated) {
+        return config
     }
 
-    return config
-})
+    try {
+        await keycloak.updateToken(30)
+
+        config.headers = config.headers || {}
+        config.headers.Authorization = `Bearer ${keycloak.token}`
+
+        return config
+    } catch (error) {
+        console.error('Failed to refresh access token', error)
+        await keycloak.login()
+
+        return Promise.reject(error)
+    }
+}
+
+apiClient.interceptors.request.use(attachAccessToken)
+mcpClient.interceptors.request.use(attachAccessToken)
 
 export function getErrorMessage(error) {
     if (error?.response?.data?.message) {

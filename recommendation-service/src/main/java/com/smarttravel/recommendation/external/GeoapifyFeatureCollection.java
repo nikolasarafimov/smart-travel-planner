@@ -7,5 +7,4 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record GeoapifyFeatureCollection(
         List<GeoapifyFeature> features
-) {
-}
+) {}

@@ -7,5 +7,4 @@ public record ExternalApiStatusResponse(
         String strategy,
         String deduplicationKey,
         String backendFlow
-) {
-}
+) {}

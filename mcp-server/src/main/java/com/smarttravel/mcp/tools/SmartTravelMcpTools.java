@@ -7,10 +7,14 @@ import com.smarttravel.mcp.dto.TripResponse;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
+
 import java.util.List;
 
 @Component
 public class SmartTravelMcpTools {
+
+    private static final int DEFAULT_LIMIT = 10;
+    private static final int MAX_LIMIT = 50;
 
     private final SmartTravelApiClient smartTravelApiClient;
 
@@ -23,26 +27,40 @@ public class SmartTravelMcpTools {
             description = "Recommend hotels, restaurants, or attractions for a travel destination."
     )
     public List<RecommendationResponse> recommendPlaces(
-            @McpToolParam(description = "Destination city, for example Paris", required = true)
+            @McpToolParam(
+                    description = "Destination city, for example Paris.",
+                    required = true
+            )
             String destination,
 
-            @McpToolParam(description = "Recommendation type: ATTRACTION, HOTEL, RESTAURANT. Can be empty for all types.", required = false)
+            @McpToolParam(
+                    description = "Recommendation type: ATTRACTION, HOTEL, or RESTAURANT. Leave empty to return all types.",
+                    required = false
+            )
             String type,
 
-            @McpToolParam(description = "Maximum number of results to return.", required = false)
+            @McpToolParam(
+                    description = "Maximum number of results to return. Defaults to 10 and cannot exceed 50.",
+                    required = false
+            )
             Integer limit
     ) {
-        List<RecommendationResponse> recommendations =
-                smartTravelApiClient.getRecommendations(destination, type);
-
-        if (recommendations == null) {
-            return List.of();
+        if (destination == null || destination.isBlank()) {
+            throw new IllegalArgumentException("Destination must not be blank");
         }
 
-        int max = limit == null || limit <= 0 ? recommendations.size() : Math.min(limit, recommendations.size());
+        int requestedLimit = limit == null ? DEFAULT_LIMIT : limit;
 
-        return recommendations.stream()
-                .limit(max)
+        if (requestedLimit <= 0) {
+            throw new IllegalArgumentException("Limit must be greater than zero");
+        }
+
+        int effectiveLimit = Math.min(requestedLimit, MAX_LIMIT);
+
+        return smartTravelApiClient
+                .getRecommendations(destination.trim(), type)
+                .stream()
+                .limit(effectiveLimit)
                 .toList();
     }
 
@@ -51,9 +69,10 @@ public class SmartTravelMcpTools {
             description = "Get details for a specific trip by trip id."
     )
     public TripResponse getTripDetails(
-            @McpToolParam(description = "Trip id", required = true)
+            @McpToolParam(description = "Trip id.", required = true)
             Long tripId
     ) {
+        validateTripId(tripId);
         return smartTravelApiClient.getTripDetails(tripId);
     }
 
@@ -62,17 +81,14 @@ public class SmartTravelMcpTools {
             description = "Get saved attractions for a specific trip."
     )
     public List<SavedRecommendationResponse> getSavedAttractions(
-            @McpToolParam(description = "Trip id", required = true)
+            @McpToolParam(description = "Trip id.", required = true)
             Long tripId
     ) {
-        List<SavedRecommendationResponse> saved =
-                smartTravelApiClient.getSavedRecommendations(tripId);
+        validateTripId(tripId);
 
-        if (saved == null) {
-            return List.of();
-        }
-
-        return saved.stream()
+        return smartTravelApiClient
+                .getSavedRecommendations(tripId)
+                .stream()
                 .filter(item -> item.recommendation() != null)
                 .filter(item -> "ATTRACTION".equalsIgnoreCase(item.recommendation().type()))
                 .toList();
@@ -83,9 +99,16 @@ public class SmartTravelMcpTools {
             description = "Estimate the total cost of saved recommendations for a trip."
     )
     public float estimateTripCost(
-            @McpToolParam(description = "Trip id", required = true)
+            @McpToolParam(description = "Trip id.", required = true)
             Long tripId
     ) {
+        validateTripId(tripId);
         return smartTravelApiClient.estimateTripCost(tripId);
+    }
+
+    private static void validateTripId(Long tripId) {
+        if (tripId == null || tripId <= 0) {
+            throw new IllegalArgumentException("Trip id must be greater than zero");
+        }
     }
 }

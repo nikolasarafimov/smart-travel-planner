@@ -11,26 +11,33 @@ import org.springframework.web.client.RestClient;
 @Service
 public class KeycloakTokenService {
 
+    private static final long DEFAULT_EXPIRATION_SECONDS = 300;
+    private static final long REFRESH_BUFFER_SECONDS = 30;
+
     private final RestClient restClient;
-
-    @Value("${keycloak.token-url}")
-    private String tokenUrl;
-
-    @Value("${keycloak.client-id}")
-    private String clientId;
-
-    @Value("${keycloak.client-secret}")
-    private String clientSecret;
+    private final String tokenUrl;
+    private final String clientId;
+    private final String clientSecret;
 
     private String cachedToken;
-    private long expiresAtMillis;
+    private long refreshAtMillis;
 
-    public KeycloakTokenService(RestClient.Builder restClientBuilder) {
+    public KeycloakTokenService(
+            RestClient.Builder restClientBuilder,
+            @Value("${keycloak.token-url}") String tokenUrl,
+            @Value("${keycloak.client-id}") String clientId,
+            @Value("${keycloak.client-secret}") String clientSecret) {
+
         this.restClient = restClientBuilder.build();
+        this.tokenUrl = tokenUrl;
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
     }
 
-    public String getAccessToken() {
-        if (cachedToken != null && System.currentTimeMillis() < expiresAtMillis) {
+    public synchronized String getAccessToken() {
+        long now = System.currentTimeMillis();
+
+        if (cachedToken != null && now < refreshAtMillis) {
             return cachedToken;
         }
 
@@ -47,13 +54,21 @@ public class KeycloakTokenService {
                 .body(KeycloakTokenResponse.class);
 
         if (response == null || response.accessToken() == null || response.accessToken().isBlank()) {
-            throw new IllegalStateException("Failed to get access token from Keycloak");
+            throw new IllegalStateException("Keycloak returned an empty access token");
         }
 
         cachedToken = response.accessToken();
 
-        long expiresInSeconds = response.expiresIn() == null ? 300 : response.expiresIn();
-        expiresAtMillis = System.currentTimeMillis() + Math.max(30, expiresInSeconds - 30) * 1000;
+        long expiresInSeconds = response.expiresIn() != null
+                ? response.expiresIn()
+                : DEFAULT_EXPIRATION_SECONDS;
+
+        long cacheLifetimeSeconds = Math.max(
+                0,
+                expiresInSeconds - REFRESH_BUFFER_SECONDS
+        );
+
+        refreshAtMillis = now + cacheLifetimeSeconds * 1000L;
 
         return cachedToken;
     }

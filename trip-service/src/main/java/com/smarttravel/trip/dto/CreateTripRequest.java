@@ -6,11 +6,12 @@ import jakarta.validation.constraints.Positive;
 
 import java.time.LocalDate;
 
-public record CreateTripRequest (
-    @NotBlank String userId,
-    @NotBlank String destination,
-    @NotNull LocalDate startDate,
-    @NotNull LocalDate endDate,
-    @NotNull @Positive float budget,
-    String currency
-){}
+public record CreateTripRequest(
+        @NotBlank String userId,
+        @NotBlank String destination,
+        @NotNull LocalDate startDate,
+        @NotNull LocalDate endDate,
+        @Positive float budget,
+        String currency
+) {
+}

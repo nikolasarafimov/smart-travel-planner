@@ -20,22 +20,25 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TripService {
 
+    private static final String DEFAULT_CURRENCY = "EUR";
+
     private final TripRepository tripRepository;
     private final RecommendationClient recommendationClient;
     private final TripEventProducer tripEventProducer;
 
     public TripResponse createTrip(CreateTripRequest request) {
         Trip trip = Trip.builder()
-                .userId(request.userId())
-                .destination(request.destination())
+                .userId(request.userId().trim())
+                .destination(request.destination().trim())
                 .startDate(request.startDate())
                 .endDate(request.endDate())
                 .budget(request.budget())
-                .currency(request.currency() == null || request.currency().isBlank() ? "EUR" : request.currency())
+                .currency(normalizeCurrency(request.currency(), DEFAULT_CURRENCY))
                 .status(TripStatus.PLANNED)
                 .build();
 
         Trip savedTrip = tripRepository.save(trip);
+
         tripEventProducer.publishTripCreatedEvent(
                 new TripCreatedEvent(
                         savedTrip.getId(),
@@ -66,33 +69,35 @@ public class TripService {
     }
 
     public TripResponse getTripById(Long id) {
-        Trip trip = findTripById(id);
-        return mapToResponse(trip);
+        return mapToResponse(findTripById(id));
     }
 
     public TripResponse updateTrip(Long id, UpdateTripRequest request) {
         Trip trip = findTripById(id);
 
-        trip.setDestination(request.destination());
+        trip.setDestination(request.destination().trim());
         trip.setStartDate(request.startDate());
         trip.setEndDate(request.endDate());
         trip.setBudget(request.budget());
-        trip.setCurrency(request.currency() == null ? trip.getCurrency() : request.currency());
-        trip.setStatus(request.status() == null ? trip.getStatus() : request.status());
+        trip.setCurrency(normalizeCurrency(request.currency(), trip.getCurrency()));
 
-        Trip updatedTrip = tripRepository.save(trip);
+        if (request.status() != null) {
+            trip.setStatus(request.status());
+        }
 
-        return mapToResponse(updatedTrip);
+        return mapToResponse(tripRepository.save(trip));
     }
 
     public void deleteTrip(Long id) {
-        Trip trip = findTripById(id);
-        tripRepository.delete(trip);
+        tripRepository.delete(findTripById(id));
     }
 
     public List<RecommendationResponse> getRecommendationsForTrip(Long id) {
         Trip trip = findTripById(id);
-        return recommendationClient.getRecommendationsByDestinations(trip.getDestination());
+
+        return recommendationClient.getRecommendationsByDestination(
+                trip.getDestination()
+        );
     }
 
     public float getEstimatedCostForTrip(Long id) {
@@ -102,7 +107,15 @@ public class TripService {
 
     private Trip findTripById(Long id) {
         return tripRepository.findById(id)
-                .orElseThrow(() -> new TripNotFoundException (id));
+                .orElseThrow(() -> new TripNotFoundException(id));
+    }
+
+    private String normalizeCurrency(String currency, String fallback) {
+        if (currency == null || currency.isBlank()) {
+            return fallback;
+        }
+
+        return currency.trim().toUpperCase();
     }
 
     private TripResponse mapToResponse(Trip trip) {

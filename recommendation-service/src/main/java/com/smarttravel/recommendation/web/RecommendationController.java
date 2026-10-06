@@ -1,23 +1,37 @@
 package com.smarttravel.recommendation.web;
 
+import com.smarttravel.recommendation.dto.ExternalApiStatusResponse;
 import com.smarttravel.recommendation.dto.SaveRecommendationRequest;
 import com.smarttravel.recommendation.model.Recommendation;
 import com.smarttravel.recommendation.model.RecommendationType;
 import com.smarttravel.recommendation.model.SavedRecommendation;
 import com.smarttravel.recommendation.service.RecommendationService;
-import com.smarttravel.recommendation.dto.ExternalApiStatusResponse;
-import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/recommendations")
+@Validated
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
 
-    public RecommendationController(RecommendationService recommendationService) {
+    public RecommendationController(
+            RecommendationService recommendationService) {
+
         this.recommendationService = recommendationService;
     }
 
@@ -28,50 +42,53 @@ public class RecommendationController {
 
     @GetMapping
     public List<Recommendation> getRecommendations(
-            @RequestParam String destination,
-            @RequestParam(required = false) RecommendationType type
-    ) {
+            @RequestParam @NotBlank String destination,
+            @RequestParam(required = false) RecommendationType type) {
+
         return recommendationService.getRecommendations(destination, type);
     }
 
     @GetMapping("/hotels")
     public List<Recommendation> getHotels(
-            @RequestParam String destination,
-            @RequestParam(required = false) BigDecimal budget
-    ) {
+            @RequestParam @NotBlank String destination,
+            @RequestParam(required = false) @PositiveOrZero BigDecimal budget) {
+
         return recommendationService.getHotels(destination, budget);
     }
 
     @GetMapping("/restaurants")
-    public List<Recommendation> getRestaurants(@RequestParam String destination) {
+    public List<Recommendation> getRestaurants(
+            @RequestParam @NotBlank String destination) {
+
         return recommendationService.getRestaurants(destination);
     }
 
     @GetMapping("/attractions")
-    public List<Recommendation> getAttractions(@RequestParam String destination) {
+    public List<Recommendation> getAttractions(
+            @RequestParam @NotBlank String destination) {
+
         return recommendationService.getAttractions(destination);
     }
 
     @PostMapping("/{id}/save")
     public SavedRecommendation saveRecommendation(
-            @PathVariable Long id,
-            @RequestBody SaveRecommendationRequest request
-    ) {
+            @PathVariable @Positive Long id,
+            @Valid @RequestBody SaveRecommendationRequest request) {
+
         return recommendationService.saveRecommendation(id, request);
     }
 
     @GetMapping("/saved")
-    public List<SavedRecommendation> getSavedRecommendations(@RequestParam Long tripId) {
+    public List<SavedRecommendation> getSavedRecommendations(
+            @RequestParam @Positive Long tripId) {
+
         return recommendationService.getSavedRecommendations(tripId);
     }
 
     @GetMapping("/estimate")
-    public BigDecimal estimateTripCost(@RequestParam Long tripId) {
-        return recommendationService.estimateTripCost(tripId);
-    }
+    public BigDecimal estimateTripCost(
+            @RequestParam @Positive Long tripId) {
 
-    @GetMapping("/health-test")
-    public String healthTest() {
-        return "Recommendation Service is running";
+        return recommendationService.estimateTripCost(tripId);
     }
 }

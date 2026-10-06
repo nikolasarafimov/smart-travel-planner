@@ -10,5 +10,4 @@ public record RecommendationResponse(
         Double rating,
         String source,
         String externalPlaceId
-) {
-}
+) {}

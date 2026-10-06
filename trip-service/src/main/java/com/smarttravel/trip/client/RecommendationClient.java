@@ -9,8 +9,12 @@ import java.util.List;
 
 @FeignClient(name = "recommendation-service", path = "/api/recommendations")
 public interface RecommendationClient {
+
     @GetMapping
-    List<RecommendationResponse> getRecommendationsByDestinations(@RequestParam("destination") String destination);
+    List<RecommendationResponse> getRecommendationsByDestination(
+            @RequestParam("destination") String destination
+    );
+
     @GetMapping("/estimate")
     float estimateTripCost(@RequestParam("tripId") Long tripId);
 }
