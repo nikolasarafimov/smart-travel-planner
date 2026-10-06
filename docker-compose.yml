@@ -116,9 +116,11 @@ services:
       KC_HOSTNAME: http://localhost:8086
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
-    command: start-dev
+      MCP_CLIENT_SECRET: ${MCP_CLIENT_SECRET:?MCP_CLIENT_SECRET is required}
+    command: start-dev --import-realm
     volumes:
       - keycloak_data:/opt/keycloak/data
+      - ./keycloak:/opt/keycloak/data/import:ro
     restart: unless-stopped
 
   recommendation-service:
